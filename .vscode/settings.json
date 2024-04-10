@@ -1,0 +1,12 @@
+{
+	"[m68k]": {
+		"editor.rulers": []
+	},
+	"m68k.includePaths": [
+		"/Users/batesgw1/amiga/ndk",
+		"/Users/batesgw1/amiga/libraries",
+		"/Users/batesgw1/.vscode/extensions/bartmanabyss.amiga-debug-1.7.6/bin/darwin/opt/m68k-amiga-elf/sys-include"
+	],
+	"C_Cpp.default.configurationProvider": "BartmanAbyss.amiga-debug",
+	"m68k.vasm.provideDiagnostics": false
+}

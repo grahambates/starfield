@@ -1,0 +1,103 @@
+#!/usr/bin/env node
+
+// Screen settings
+const BPLS = 3
+const SCREEN_H = 256
+const SCREEN_W = 320
+
+// Size of tables (max/min value lookup)
+const EXP_RANGE = 800;
+const LOG_RANGE = 600;
+
+const LOG_SCALE = 128; // Multiplier for log table output
+const EXT_SCALE = 256; // Multiplier for exp output
+const SCREEN_BW = (SCREEN_W >> 3) * BPLS;
+
+// Output constants for ASM
+console.log("EXP_RANGE = " + EXP_RANGE);
+console.log("LOG_RANGE = " + LOG_RANGE);
+// Table mid-points
+console.log("Log = LogTab+LOG_RANGE*2");
+console.log("ExpX = ExpTabX+EXP_RANGE*4");
+console.log("ExpY = ExpTabY+EXP_RANGE*2");
+
+
+const logTab = [];
+
+for (let x = -LOG_RANGE; x <= LOG_RANGE; x++) {
+  let offs = Math.round(Math.log(Math.abs(x)) * LOG_SCALE);
+  offs *= 2; // Pre-double for offset in exp table
+  if (x < 0) {
+    logTab.push(offs + EXP_RANGE * 2); // Offset to negative values in exp table
+  } else if (x === 0) {
+    logTab.push(0);
+  } else {
+    logTab.push(offs);
+  }
+}
+
+console.log(formatTable(logTab, { label: "LogTab" }));
+
+const expPos = [];
+const expNeg = [];
+for (let x = -EXP_RANGE; x <= 0; x++) {
+  expPos.push(Math.ceil(Math.exp(x / LOG_SCALE) * EXT_SCALE));
+  expNeg.push(-Math.floor(Math.exp(x / LOG_SCALE) * EXT_SCALE));
+}
+
+// Exp output is pre-processed for use as x or y value in plot routine
+
+// Multiply values by screen byte width
+const yTable = values => values.map((n) => {
+  // Prevent OOB
+  if (Math.abs(n) > SCREEN_H/2) {
+    n = SCREEN_H/2;
+  }
+  return n * SCREEN_BW
+});
+
+// Convert values to pairs of byte offset and bit
+const xTable = (values) => values.reduce((acc, v) => {
+  if (Math.abs(v) > SCREEN_W/2) {
+    return [...acc, 0, 0]; // Prevent OOB
+  }
+  const byteOffset = v >> 3;
+  const bitToSet = ~v & 0xf;
+  return [...acc, byteOffset, bitToSet];
+}, []);
+
+console.log(formatTable(yTable(expPos), { label: "ExpTabY" }));
+console.log(formatTable(yTable(expNeg), { label: "ExpTabYNeg" }));
+
+console.log(formatTable(xTable(expPos), { label: "ExpTabX" }));
+console.log(formatTable(xTable(expNeg), { label: "ExpTabXNeg" }));
+
+function formatTable(values, options = {}) {
+  const opts = {
+    size: "w",
+    rowSize: 16,
+    hex: true,
+    ...options,
+  };
+  let output = opts.label ? opts.label + ":" : "";
+  for (let i in values) {
+    output += i % opts.rowSize ? "," : `\n  dc.${opts.size}  `;
+    output += opts.hex ? formatHex(values[i], opts.size) : values[i];
+  }
+  return output;
+}
+
+function formatHex(value, size) {
+  const sizes = {
+    b: 1,
+    w: 2,
+    l: 4,
+  };
+  const l = sizes[size];
+  const max = Math.pow(2, 8 * l);
+  if (value < 0) {
+    value = max + value;
+  }
+  value = value % max;
+  return "$" + value.toString(16).padStart(l * 2, "0");
+}
